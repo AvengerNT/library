@@ -1,1 +1,53 @@
-[]
+[
+  {
+    "title": "The Hobbit",
+    "author": "J.R.R. Tolkien",
+    "year": 1937
+  },
+  {
+    "title": "The Fellowship of the Ring",
+    "author": "J.R.R. Tolkien",
+    "year": 1954
+  },
+  {
+    "title": "Harry Potter and the Sorcerer's Stone",
+    "author": "J.K. Rowling",
+    "year": 1997
+  },
+  {
+    "title": "Harry Potter and the Chamber of Secrets",
+    "author": "J.K. Rowling",
+    "year": 1998
+  },
+  {
+    "title": "A Game of Thrones",
+    "author": "George R.R. Martin",
+    "year": 1996
+  },
+  {
+    "title": "A Clash of Kings",
+    "author": "George R.R. Martin",
+    "year": 1998
+  },
+  {
+    "title": "The Name of the Wind",
+    "author": "Patrick Rothfuss",
+    "year": 2007
+  },
+  {
+    "title": "The Final Empire",
+    "author": "Brandon Sanderson",
+    "year": 2006
+  },
+  {
+    "title": "Mistborn: The Well of Ascension",
+    "author": "Brandon Sanderson",
+    "year": 2007
+  },
+  {
+    "title": "The Way of Kings",
+    "author": "Brandon Sanderson",
+    "year": 2010
+  }
+]
+
