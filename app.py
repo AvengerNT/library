@@ -1,88 +1,71 @@
 import streamlit as st
-import pandas as pd
-import os
 import json
+import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-BOOKS_FILE = 'books.json'
-
-if not os.path.exists(BOOKS_FILE):
-    with open(BOOKS_FILE, 'w') as f:
-        json.dump([], f)
+# ---------------------------------------
+# Load Book Data
+# ---------------------------------------
+@st.cache_data
 def load_books():
-    if not os.path.exists(BOOKS_FILE) or os.stat(BOOKS_FILE).st_size == 0:
-        with open(BOOKS_FILE, 'w') as f:
-            json.dump([], f)
+    with open("book.json", "r") as f:
+        books = json.load(f)
+    return books
+
+books = load_books()
+df = pd.DataFrame(books)
+
+# ---------------------------------------
+# Title Vectorization for AI Recommendations
+# ---------------------------------------
+@st.cache_resource
+def compute_similarity(df):
+    titles = df["title"].tolist()
+    vectorizer = TfidfVectorizer(stop_words="english")
+    tfidf_matrix = vectorizer.fit_transform(titles)
+    similarity = cosine_similarity(tfidf_matrix)
+    return similarity, titles
+
+similarity_matrix, title_list = compute_similarity(df)
+
+# ---------------------------------------
+# Recommendation Function
+# ---------------------------------------
+def get_recommendations(input_title, top_n=5):
+    if input_title not in title_list:
         return []
-    try:
-        with open(BOOKS_FILE, 'r') as f:
-            return json.load(f)
-    except json.JSONDecodeError:
-        with open(BOOKS_FILE, 'w') as f:
-            json.dump([], f)
-        return []
+    idx = title_list.index(input_title)
+    scores = list(enumerate(similarity_matrix[idx]))
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n+1]
+    return [title_list[i] for i, _ in scores]
 
+# ---------------------------------------
+# Streamlit UI
+# ---------------------------------------
+st.set_page_config(page_title="Library Recommender", layout="wide")
+st.title("📚 AI-Based Book Recommendation System")
 
-def save_books(data):
-    with open(BOOKS_FILE, 'w') as f:
-        json.dump(data, f, indent=4)
+st.markdown("Search for a book title and get AI-powered recommendations based on content similarity.")
 
-def add_book(title, author, year):
-    books = load_books()
-    books.append({'Title': title, 'Author': author, 'Year': year})
-    save_books(books)
+search_input = st.text_input("🔍 Enter a Book Title")
 
-def get_recommendations(selected_title):
-    books = load_books()
-    df = pd.DataFrame(books)
-    if df.empty or len(df) < 2:
-        return []
-    df['Text'] = df['Title'] + " " + df['Author']
-    tfidf = TfidfVectorizer(stop_words='english')
-    tfidf_matrix = tfidf.fit_transform(df['Text'])
-    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
-    idx = df[df['Title'] == selected_title].index[0]
-    sim_scores = list(enumerate(cosine_sim[idx]))
-    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:4]
-    recommended_titles = [df.iloc[i[0]]['Title'] for i in sim_scores]
-    return recommended_titles
+if search_input:
+    matches = [t for t in title_list if search_input.lower() in t.lower()]
+    if matches:
+        selected_book = st.selectbox("Select from matching titles:", matches)
+        st.subheader("📖 Selected Book Details")
+        book_info = df[df["title"] == selected_book].iloc[0]
+        st.write(f"**Title:** {book_info['title']}")
+        st.write(f"**Author:** {book_info['author']}")
+        st.write(f"**Year:** {book_info['year']}")
 
-st.set_page_config(page_title="📚 Smart Library System", layout="centered")
-st.title("📚 AI Library Management System")
-
-menu = st.sidebar.selectbox("Menu", ["View Books", "Add Book", "Search & Recommend"])
-
-if menu == "Add Book":
-    st.subheader("➕ Add New Book")
-    title = st.text_input("Title")
-    author = st.text_input("Author")
-    year = st.text_input("Year")
-    if st.button("Add"):
-        if title and author and year:
-            add_book(title, author, year)
-            st.success("Book added successfully.")
-        else:
-            st.warning("Please fill all fields.")
-
-elif menu == "View Books":
-    st.subheader("📖 Book List")
-    books = load_books()
-    st.dataframe(pd.DataFrame(books))
-
-elif menu == "Search & Recommend":
-    st.subheader("🔍 Search & Get Recommendations")
-    books = load_books()
-    if books:
-        titles = [book['Title'] for book in books]
-        selected = st.selectbox("Choose a book", titles)
-        st.write("📘 Selected Book:", selected)
-        recs = get_recommendations(selected)
+        st.subheader("🤖 Recommended Books")
+        recs = get_recommendations(selected_book)
         if recs:
-            st.success("📚 You may also like:")
-            for r in recs:
-                st.markdown(f"- {r}")
+            for i, rec in enumerate(recs, 1):
+                st.write(f"{i}. {rec}")
         else:
-            st.warning("Not enough data for recommendation.")
+            st.info("No recommendations found.")
     else:
-        st.warning("No books found.")
+        st.warning("No matching books found.")
