@@ -10,10 +10,19 @@ BOOKS_FILE = 'books.json'
 if not os.path.exists(BOOKS_FILE):
     with open(BOOKS_FILE, 'w') as f:
         json.dump([], f)
-
 def load_books():
-    with open(BOOKS_FILE, 'r') as f:
-        return json.load(f)
+    if not os.path.exists(BOOKS_FILE) or os.stat(BOOKS_FILE).st_size == 0:
+        with open(BOOKS_FILE, 'w') as f:
+            json.dump([], f)
+        return []
+    try:
+        with open(BOOKS_FILE, 'r') as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        with open(BOOKS_FILE, 'w') as f:
+            json.dump([], f)
+        return []
+
 
 def save_books(data):
     with open(BOOKS_FILE, 'w') as f:
