@@ -44,9 +44,9 @@ def get_recommendations(input_title, top_n=5):
 # Streamlit UI
 # ---------------------------------------
 st.set_page_config(page_title="Library Recommender", layout="wide")
-st.title("📚 AI-Based Book Recommendation System")
+st.title("📚 Book Recommendation System")
 
-st.markdown("Search for a book title and get AI-powered recommendations based on content similarity.")
+st.markdown("Search for a book title and get recommendations based on content similarity.")
 
 search_input = st.text_input("🔍 Enter a Book Title")
 
