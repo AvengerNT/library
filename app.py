@@ -2,11 +2,11 @@ import streamlit as st
 import pandas as pd
 import os
 import json
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# File to store book data
 BOOKS_FILE = 'books.json'
 
-# Initialize or load data
 if not os.path.exists(BOOKS_FILE):
     with open(BOOKS_FILE, 'w') as f:
         json.dump([], f)
@@ -24,24 +24,28 @@ def add_book(title, author, year):
     books.append({'Title': title, 'Author': author, 'Year': year})
     save_books(books)
 
-def delete_book(index):
+def get_recommendations(selected_title):
     books = load_books()
-    if 0 <= index < len(books):
-        books.pop(index)
-        save_books(books)
+    df = pd.DataFrame(books)
+    if df.empty or len(df) < 2:
+        return []
+    df['Text'] = df['Title'] + " " + df['Author']
+    tfidf = TfidfVectorizer(stop_words='english')
+    tfidf_matrix = tfidf.fit_transform(df['Text'])
+    cosine_sim = cosine_similarity(tfidf_matrix, tfidf_matrix)
+    idx = df[df['Title'] == selected_title].index[0]
+    sim_scores = list(enumerate(cosine_sim[idx]))
+    sim_scores = sorted(sim_scores, key=lambda x: x[1], reverse=True)[1:4]
+    recommended_titles = [df.iloc[i[0]]['Title'] for i in sim_scores]
+    return recommended_titles
 
-def search_books(keyword):
-    books = load_books()
-    return [book for book in books if keyword.lower() in book['Title'].lower()]
+st.set_page_config(page_title="📚 Smart Library System", layout="centered")
+st.title("📚 AI Library Management System")
 
-# Streamlit UI
-st.set_page_config(page_title="📚 Library Management System", layout="centered")
-st.title("📚 Library Management System")
-
-menu = st.sidebar.selectbox("Menu", ["View Books", "Add Book", "Search", "Delete Book"])
+menu = st.sidebar.selectbox("Menu", ["View Books", "Add Book", "Search & Recommend"])
 
 if menu == "Add Book":
-    st.subheader("Add New Book")
+    st.subheader("➕ Add New Book")
     title = st.text_input("Title")
     author = st.text_input("Author")
     year = st.text_input("Year")
@@ -53,32 +57,23 @@ if menu == "Add Book":
             st.warning("Please fill all fields.")
 
 elif menu == "View Books":
-    st.subheader("Book List")
+    st.subheader("📖 Book List")
     books = load_books()
     st.dataframe(pd.DataFrame(books))
 
-elif menu == "Search":
-    st.subheader("Search Book")
-    keyword = st.text_input("Enter keyword")
-    if st.button("Search"):
-        result = search_books(keyword)
-        if result:
-            st.write("Results:")
-            st.dataframe(pd.DataFrame(result))
-        else:
-            st.warning("No books found.")
-
-elif menu == "Delete Book":
-    st.subheader("Delete Book")
+elif menu == "Search & Recommend":
+    st.subheader("🔍 Search & Get Recommendations")
     books = load_books()
     if books:
-        df = pd.DataFrame(books)
-        index = st.selectbox("Select book index to delete", df.index)
-        st.write(df.iloc[index])
-        if st.button("Delete"):
-            delete_book(index)
-            st.success("Book deleted.")
+        titles = [book['Title'] for book in books]
+        selected = st.selectbox("Choose a book", titles)
+        st.write("📘 Selected Book:", selected)
+        recs = get_recommendations(selected)
+        if recs:
+            st.success("📚 You may also like:")
+            for r in recs:
+                st.markdown(f"- {r}")
+        else:
+            st.warning("Not enough data for recommendation.")
     else:
-        st.warning("No books to delete.")
-
-
+        st.warning("No books found.")
