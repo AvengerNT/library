@@ -35,7 +35,7 @@ def signup(username, password, role):
     return True, "Signup successful!"
 
 def login(username, password):
-    for user in users:
+    for user in users["users"]:
         if user["username"] == username and user["password"] == password:
             return True, user["role"]
     return False, None
