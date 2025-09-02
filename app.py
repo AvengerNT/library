@@ -56,6 +56,11 @@ if search_input:
         selected_book = st.selectbox("Select from matching titles:", matches)
         st.subheader("📖 Selected Book Details")
         book_info = df[df["title"] == selected_book].iloc[0]
+
+        # Show book cover if available
+        if "image" in book_info and book_info["image"]:
+            st.image(book_info["image"], width=200)
+
         st.write(f"**Title:** {book_info['title']}")
         st.write(f"**Author:** {book_info['author']}")
         st.write(f"**Year:** {book_info['year']}")
@@ -64,7 +69,15 @@ if search_input:
         recs = get_recommendations(selected_book)
         if recs:
             for i, rec in enumerate(recs, 1):
-                st.write(f"{i}. {rec}")
+                rec_info = df[df["title"] == rec].iloc[0]
+                cols = st.columns([1,3])
+                with cols[0]:
+                    if "image" in rec_info and rec_info["image"]:
+                        st.image(rec_info["image"], width=100)
+                with cols[1]:
+                    st.write(f"**{rec_info['title']}**")
+                    st.write(f"Author: {rec_info['author']}")
+                    st.write(f"Year: {rec_info['year']}")
         else:
             st.info("No recommendations found.")
     else:
