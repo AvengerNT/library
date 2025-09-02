@@ -2,147 +2,126 @@ import streamlit as st
 import json
 import os
 
-BOOKS_FILE = "books.json"
+# ========= JSON FILES =========
 USERS_FILE = "users.json"
+BOOKS_FILE = "books.json"
 
-# ---------- Utility Functions ----------
-def load_json(file):
-    if os.path.exists(file):
-        with open(file, "r") as f:
-            return json.load(f)
-    return []
+# ========= JSON HELPERS =========
+def load_json(file_path, default_data):
+    if not os.path.exists(file_path):
+        with open(file_path, "w") as f:
+            json.dump(default_data, f, indent=4)
+    with open(file_path, "r") as f:
+        return json.load(f)
 
-def save_json(file, data):
-    with open(file, "w") as f:
+def save_json(file_path, data):
+    with open(file_path, "w") as f:
         json.dump(data, f, indent=4)
 
+# ========= USER MANAGEMENT =========
 def login(username, password):
-    users = load_json(USERS_FILE)
-    for user in users:
+    data = load_json(USERS_FILE, {"users": []})
+    for user in data["users"]:
         if user["username"] == username and user["password"] == password:
-            return True, user["role"]
-    return False, None
+            return True, user["role"], user
+    return False, None, None
 
-# ---------- Login Page ----------
-def login_page():
-    st.title("📚 Library Management System")
-    st.subheader("Login to Your Account")
+def register_user(username, password, email, role="reader"):
+    data = load_json(USERS_FILE, {"users": []})
+    for user in data["users"]:
+        if user["username"] == username:
+            return False
+    new_id = max([u["id"] for u in data["users"]], default=0) + 1
+    data["users"].append({
+        "id": new_id,
+        "username": username,
+        "password": password,
+        "role": role,
+        "email": email,
+        "borrowed_books": []
+    })
+    save_json(USERS_FILE, data)
+    return True
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-    if st.button("Login"):
-        success, role = login(username, password)
-        if success:
-            st.session_state.logged_in = True
-            st.session_state.role = role
-            st.session_state.username = username
-            st.success(f"Welcome {username} ({role})!")
-        else:
-            st.error("Invalid username or password")
+# ========= BOOK MANAGEMENT =========
+def get_books():
+    return load_json(BOOKS_FILE, [])
 
-# ---------- Librarian Dashboard ----------
-def librarian_dashboard():
-    st.title("👩‍💼 Librarian Dashboard")
+# ========= STREAMLIT APP =========
+st.set_page_config(page_title="📚 Library Management System", layout="wide")
+st.title("📚 Library Management System")
 
-    menu = st.sidebar.radio("Menu", ["View Books", "Add Book", "Edit/Delete Book", "Logout"])
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "role" not in st.session_state:
+    st.session_state.role = None
+if "username" not in st.session_state:
+    st.session_state.username = None
 
-    books = load_json(BOOKS_FILE)
+# LOGIN / REGISTER
+if not st.session_state.logged_in:
+    menu = st.sidebar.radio("Menu", ["Login", "Register"])
 
-    if menu == "View Books":
-        st.subheader("All Books in Library")
-        for book in books:
-            st.write(f"**{book['title']}** by {book['author']} ({book['year']})")
-            if "image" in book and book["image"]:
-                st.image(book["image"], width=100)
+    if menu == "Login":
+        st.subheader("🔑 Login to Your Account")
+        username = st.text_input("Username")
+        password = st.text_input("Password", type="password")
+        if st.button("Login"):
+            success, role, user = login(username, password)
+            if success:
+                st.session_state.logged_in = True
+                st.session_state.role = role
+                st.session_state.username = user["username"]
+                st.success(f"✅ Welcome {user['username']} ({role})!")
+                st.experimental_rerun()
+            else:
+                st.error("❌ Invalid username or password")
 
-    elif menu == "Add Book":
-        st.subheader("➕ Add a New Book")
-        title = st.text_input("Book Title")
-        author = st.text_input("Author")
-        year = st.number_input("Year", min_value=1500, max_value=2100, step=1)
-        image = st.file_uploader("Upload Book Cover", type=["png", "jpg", "jpeg"])
+    elif menu == "Register":
+        st.subheader("📝 Create New Account")
+        username = st.text_input("Choose Username")
+        email = st.text_input("Email")
+        password = st.text_input("Choose Password", type="password")
+        role = st.selectbox("Role", ["reader", "librarian"])
+        if st.button("Register"):
+            if register_user(username, password, email, role):
+                st.success("✅ Registration successful! Please login.")
+            else:
+                st.error("⚠️ Username already exists")
 
-        if st.button("Save Book"):
-            new_book = {
-                "title": title,
-                "author": author,
-                "year": year,
-                "image": None
-            }
-            if image:
-                img_path = os.path.join("uploads", image.name)
-                os.makedirs("uploads", exist_ok=True)
-                with open(img_path, "wb") as f:
-                    f.write(image.getbuffer())
-                new_book["image"] = img_path
+else:
+    st.sidebar.success(f"👤 Logged in as: {st.session_state.username} ({st.session_state.role})")
+    if st.sidebar.button("Logout"):
+        st.session_state.logged_in = False
+        st.session_state.role = None
+        st.session_state.username = None
+        st.experimental_rerun()
 
-            books.append(new_book)
-            save_json(BOOKS_FILE, books)
-            st.success("Book added successfully!")
+    # ========= LIBRARIAN =========
+    if st.session_state.role == "librarian":
+        st.subheader("📖 Manage Books")
 
-    elif menu == "Edit/Delete Book":
-        st.subheader("✏️ Edit or Delete Books")
+        books = get_books()
         if books:
-            book_titles = [book["title"] for book in books]
-            choice = st.selectbox("Select a Book", book_titles)
-            selected_book = next((b for b in books if b["title"] == choice), None)
-
-            if selected_book:
-                new_title = st.text_input("Book Title", selected_book["title"])
-                new_author = st.text_input("Author", selected_book["author"])
-                new_year = st.number_input("Year", value=selected_book["year"], min_value=1500, max_value=2100, step=1)
-
-                if st.button("Update Book"):
-                    selected_book["title"] = new_title
-                    selected_book["author"] = new_author
-                    selected_book["year"] = new_year
-                    save_json(BOOKS_FILE, books)
-                    st.success("Book updated successfully!")
-
-                if st.button("Delete Book"):
-                    books.remove(selected_book)
-                    save_json(BOOKS_FILE, books)
-                    st.warning("Book deleted successfully!")
-
-    elif menu == "Logout":
-        st.session_state.logged_in = False
-        st.session_state.role = None
-        st.session_state.username = None
-        st.rerun()
-
-# ---------- Reader Dashboard ----------
-def reader_dashboard():
-    st.title("📖 Reader Dashboard")
-
-    menu = st.sidebar.radio("Menu", ["View Books", "Logout"])
-    books = load_json(BOOKS_FILE)
-
-    if menu == "View Books":
-        st.subheader("Available Books")
-        for book in books:
-            st.write(f"**{book['title']}** by {book['author']} ({book['year']})")
-            if "image" in book and book["image"]:
-                st.image(book["image"], width=100)
-
-    elif menu == "Logout":
-        st.session_state.logged_in = False
-        st.session_state.role = None
-        st.session_state.username = None
-        st.rerun()
-
-# ---------- Main App ----------
-def main():
-    if "logged_in" not in st.session_state:
-        st.session_state.logged_in = False
-        st.session_state.role = None
-
-    if not st.session_state.logged_in:
-        login_page()
-    else:
-        if st.session_state.role == "librarian":
-            librarian_dashboard()
+            for book in books:
+                st.markdown(f"### {book['title']} ({book['year']})")
+                st.write(f"👨‍💼 Author: {book['author']}")
+                if book.get("image"):
+                    st.image(book["image"], width=200)
+                st.divider()
         else:
-            reader_dashboard()
+            st.info("No books available yet.")
 
-if __name__ == "__main__":
-    main()
+    # ========= READER =========
+    elif st.session_state.role == "reader":
+        st.subheader("📚 Available Books")
+        books = get_books()
+        if books:
+            for book in books:
+                st.markdown(f"### {book['title']} ({book['year']})")
+                st.write(f"👨‍💼 Author: {book['author']}")
+                if book.get("image"):
+                    st.image(book["image"], width=200)
+                st.divider()
+        else:
+            st.info("No books available yet.")
