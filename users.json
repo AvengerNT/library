@@ -1,0 +1,33 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "admin",
+      "password": "admin123",
+      "role": "librarian",
+      "email": "admin@library.com"
+    },
+    {
+      "id": 2,
+      "username": "john_doe",
+      "password": "john123",
+      "role": "reader",
+      "email": "john@example.com",
+      "borrowed_books": [
+        {
+          "book_id": 1,
+          "borrow_date": "2025-09-02",
+          "return_date": "2025-09-16"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "username": "jane_smith",
+      "password": "jane123",
+      "role": "reader",
+      "email": "jane@example.com",
+      "borrowed_books": []
+    }
+  ]
+}
